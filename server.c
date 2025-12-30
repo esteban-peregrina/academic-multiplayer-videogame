@@ -312,18 +312,27 @@ int main(int argc, char *argv[])
 				{
 					// On envoie ses cartes au joueur 0, ainsi que la ligne qui lui correspond dans tableCartes
 					// RAJOUTER DU CODE ICI
-
+					char * message = "%s , %s , %s, ligne 0 du tableau TablesCartes",nomcartes[deck[0]],nomcartes[deck[1]],nomcartes[deck[2]];
+					sendMessageToClient(tcpClients[0].ipAddress,tcpClients[0].port,message);
 					// On envoie ses cartes au joueur 1, ainsi que la ligne qui lui correspond dans tableCartes
 					// RAJOUTER DU CODE ICI
+					message = "%s , %s , %s, ligne 1 du tableau TablesCartes",nomcartes[deck[3]],nomcartes[deck[4]],nomcartes[deck[5]];
+					sendMessageToClient(tcpClients[1].ipAddress,tcpClients[1].port,message);
 
 					// On envoie ses cartes au joueur 2, ainsi que la ligne qui lui correspond dans tableCartes
 					// RAJOUTER DU CODE ICI
+					message = "%s , %s , %s, ligne 2 du tableau TablesCartes",nomcartes[deck[6]],nomcartes[deck[7]],nomcartes[deck[8]];
+					sendMessageToClient(tcpClients[2].ipAddress,tcpClients[2].port,message);
 
 					// On envoie ses cartes au joueur 3, ainsi que la ligne qui lui correspond dans tableCartes
 					// RAJOUTER DU CODE ICI
+					message = "%s , %s , %s, ligne 3 du tableau TablesCartes",nomcartes[deck[9]],nomcartes[deck[10]],nomcartes[deck[11]];
+					sendMessageToClient(tcpClients[3].ipAddress,tcpClients[3].port,message);
 
 					// On envoie enfin un message a tout le monde pour definir qui est le joueur courant=0
 					// RAJOUTER DU CODE ICI
+					broadcastMessage("Le joueur courant est le joueur qui détient la ligne 0");
+					joueurCourant=0;
 
                                         fsmServer=1;
 				}
