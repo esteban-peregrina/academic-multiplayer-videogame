@@ -317,22 +317,22 @@ int main(int argc, char *argv[])
 					sendMessageToClient(tcpClients[0].ipAddress,tcpClients[0].port,message);
 					// On envoie ses cartes au joueur 1, ainsi que la ligne qui lui correspond dans tableCartes
 					// RAJOUTER DU CODE ICI
-					sprintf(message,"Cartes : %d %d %d", nomcartes[deck[3]],nomcartes[deck[4]], nomcartes[deck[5]]);
+					sprintf(message,"D Cartes : %d %d %d", nomcartes[deck[3]],nomcartes[deck[4]], nomcartes[deck[5]]);
 					sendMessageToClient(tcpClients[1].ipAddress,tcpClients[1].port,message);
 
 					// On envoie ses cartes au joueur 2, ainsi que la ligne qui lui correspond dans tableCartes
 					// RAJOUTER DU CODE ICI
-					sprintf(message,"Cartes : %d %d %d", nomcartes[deck[6]],nomcartes[deck[7]], nomcartes[deck[8]]);
+					sprintf(message,"D Cartes : %d %d %d", nomcartes[deck[6]],nomcartes[deck[7]], nomcartes[deck[8]]);
 					sendMessageToClient(tcpClients[2].ipAddress,tcpClients[2].port,message);
 
 					// On envoie ses cartes au joueur 3, ainsi que la ligne qui lui correspond dans tableCartes
 					// RAJOUTER DU CODE ICI
-					sprintf(message,"Cartes : %d %d %d", nomcartes[deck[9]],nomcartes[deck[10]], nomcartes[deck[11]]);
+					sprintf(message,"D Cartes : %d %d %d", nomcartes[deck[9]],nomcartes[deck[10]], nomcartes[deck[11]]);
 					sendMessageToClient(tcpClients[3].ipAddress,tcpClients[3].port,message);
 
 					// On envoie enfin un message a tout le monde pour definir qui est le joueur courant=0
 					// RAJOUTER DU CODE ICI
-					sprintf(message,"JoueurCourant : %d",joueurCourant);
+					sprintf(message,"D JoueurCourant : %d",joueurCourant);
 					broadcastMessage(message);
 
                                         fsmServer=1;
@@ -348,22 +348,22 @@ int main(int argc, char *argv[])
 				// RAJOUTER DU CODE ICI
 					sscanf(buffer, "G %d %d", &id, &i);
 					if (i == deck[12]) { // Le joueur trouve le coupable
-						sprintf(message, "Gagnant : %d  la carte coupable est la numéro : %d", id, i);
+						sprintf(message, "D Gagnant : %d  la carte coupable est la numéro : %d", id, i);
 						nbReplayPlayers = 0;// chercher
 						broadcastMessage(message);
 					else{ // le joueur se trompe
-						sprintf(message, "E %d %d", id, i);
+						sprintf(message, "D Le joueur : %d a tenter le numéro :%d et a échouer", id, i);
 						broadcastMessage(message);
 						nbPlayersRemaining--;
 						eliminated[id] = 1;
 						if(nbPlayersRemaining == 1){// il ne reste plus qu'un jour qui gagne automatiquement
-								sprintf(message, "Gagnant : %d Vous êtes le dernier joueur en jeu, la carte coupable est la numéro : %d ", nextPlayer(joueurCourant), deck[12]);
+								sprintf(message, "D Gagnant : %d Vous êtes le dernier joueur en jeu, la carte coupable est la numéro : %d ", nextPlayer(joueurCourant), deck[12]);
 								broadcastMessage(message);
 								nbReplayPlayers = 0;
 						}
 						else{// il reste suffisamment de joueur
 							joueurCourant = nextPlayer(joueurCourant);
-							sprintf(message, "Joueur courant = %d", joueurCourant);
+							sprintf(message, "D Joueur courant = %d", joueurCourant);
 							broadcastMessage(message);
 						}
 
