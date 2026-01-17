@@ -29,8 +29,8 @@ int b[3];
 int goEnabled;
 int connectEnabled;
 
-char* nbobjets[] = {"5","5","5","5","4","3","3","3"};
-char* nbnoms[] = {
+char *nbobjets[] = {"5","5","5","5","4","3","3","3"};
+char *nbnoms[] = {
 	"Sebastian Moran", 
 	"irene Adler", 
 	"inspector Lestrade",
@@ -55,18 +55,18 @@ void *fn_serveur_tcp(void *arg) {
 	int n;
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd<0) {
+	if (sockfd < 0) {
 		printf("sockfd error\n");
 		exit(1);
 	}
 
-	bzero((char *) &serv_addr, sizeof(serv_addr));
+	bzero((char *)&serv_addr, sizeof(serv_addr));
 	portno = gClientPort;
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	serv_addr.sin_port = htons(portno);
 	
-	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+	if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 		printf("bind error\n");
 		exit(1);
 	}
@@ -76,14 +76,14 @@ void *fn_serveur_tcp(void *arg) {
 	clilen = sizeof(cli_addr);
 	
 	while (1) {
-		newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+		newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
 		if (newsockfd < 0) {
 			printf("accept error\n");
 			exit(1);
 		}
 
-		bzero(gbuffer,256);
-		n = read(newsockfd,gbuffer,255);
+		bzero(gbuffer, 256);
+		n = read(newsockfd, gbuffer, 255);
 		if (n < 0) {
 			printf("read error\n");
 			exit(1);
@@ -106,57 +106,54 @@ void sendMessageToServer(char *ipAddress, int portno, char *mess) {
 
     server = gethostbyname(ipAddress);
     if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
+        fprintf(stderr, "ERROR, no such host\n");
         exit(0);
     }
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr,
-         (char *)&serv_addr.sin_addr.s_addr,
-         server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
 		printf("ERROR connecting\n");
 		exit(1);
 	}
 
-	sprintf(sendbuffer,"%s\n",mess);
-	n = write(sockfd,sendbuffer,strlen(sendbuffer));
+	sprintf(sendbuffer, "%s\n", mess);
+	n = write(sockfd, sendbuffer, strlen(sendbuffer));
 
     close(sockfd);
 }
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
 	int ret;
-	int i,j;
+	int i, j;
 
     int quit = 0;
     SDL_Event event;
-	int mx,my;
+	int mx, my;
 	char sendBuffer[256];
 	char lname[256];
 	int id;
 
-	if (argc<6) {
-		printf("<app> <Main server ip address> <Main server port> <Client ip address> <Client port> <player name>\n");
+	if (argc < 6) {
+		printf("Usage: \"<bin> <Main server ip address> <Main server port> <Client ip address> <Client port> <player name>\"\n");
 		exit(1);
 	}
 
-	strcpy(gServerIpAddress,argv[1]);
-	gServerPort=atoi(argv[2]);
-	strcpy(gClientIpAddress,argv[3]);
-	gClientPort=atoi(argv[4]);
-	strcpy(gName,argv[5]);
+	strcpy(gServerIpAddress, argv[1]);
+	gServerPort = atoi(argv[2]);
+	strcpy(gClientIpAddress, argv[3]);
+	gClientPort = atoi(argv[4]);
+	strcpy(gName, argv[5]);
 
     SDL_Init(SDL_INIT_VIDEO);
 	TTF_Init();
  
-    SDL_Window * window = SDL_CreateWindow("SDL2 SH13",
-	SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1024, 768, 0);
+    SDL_Window *window = SDL_CreateWindow("SDL2 SH13", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1024, 768, 0);
  
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
-    SDL_Surface *deck[13],*objet[8],*gobutton,*connectbutton;
+    SDL_Surface *deck[13], *objet[8], *gobutton, *connectbutton;
 
 	deck[0] = IMG_Load("./png/SH13_0.png");
 	deck[1] = IMG_Load("./png/SH13_1.png");
@@ -196,28 +193,28 @@ int main(int argc, char ** argv) {
 	b[1]=-1;
 	b[2]=-1;
 
-	for (i=0;i<13;i++) { guiltGuess[i] = 0; }
+	for (i = 0; i < 13; i++) { guiltGuess[i] = 0; }
 
-	for (i=0;i<4;i++) { for (j=0;j<8;j++) { tableCartes[i][j] = -1; } }
+	for (i = 0; i < 4; i++) { for (j = 0; j < 8; j++) { tableCartes[i][j] = -1; } }
 
-	goEnabled =0;
+	goEnabled = 0;
 	connectEnabled = 1;
 
-    SDL_Texture *texture_deck[13],*texture_gobutton,*texture_connectbutton,*texture_objet[8];
+    SDL_Texture *texture_deck[13], *texture_gobutton, *texture_connectbutton, *texture_objet[8];
 
-	for (i=0;i<13;i++) { texture_deck[i] = SDL_CreateTextureFromSurface(renderer, deck[i]); }
-	for (i=0;i<8;i++) { texture_objet[i] = SDL_CreateTextureFromSurface(renderer, objet[i]); }
+	for (i = 0; i < 13; i++) { texture_deck[i] = SDL_CreateTextureFromSurface(renderer, deck[i]); }
+	for (i = 0; i < 8; i++) { texture_objet[i] = SDL_CreateTextureFromSurface(renderer, objet[i]); }
 
     texture_gobutton = SDL_CreateTextureFromSurface(renderer, gobutton);
     texture_connectbutton = SDL_CreateTextureFromSurface(renderer, connectbutton);
 
-    TTF_Font* Sans = TTF_OpenFont("./font/sans.ttf", 15); 
+    TTF_Font *Sans = TTF_OpenFont("./font/sans.ttf", 15); 
     printf("Sans=%p\n",Sans);
 
 	/* Creation du thread serveur tcp. */
 	printf ("Creation du thread serveur tcp !\n");
-	synchro=0;
-	ret = pthread_create ( & thread_serveur_tcp_id, NULL, fn_serveur_tcp, NULL);
+	synchro = 0;
+	ret = pthread_create (&thread_serveur_tcp_id, NULL, fn_serveur_tcp, NULL);
 
     while (!quit) {
 		if (SDL_PollEvent(&event)) {
@@ -230,43 +227,51 @@ int main(int argc, char ** argv) {
 				case SDL_MOUSEBUTTONDOWN:
 					SDL_GetMouseState( &mx, &my );
 					//printf("mx=%d my=%d\n",mx,my);
-					if ((mx<200) && (my<50) && (connectEnabled==1)) {
-						sprintf(sendBuffer,"C %s %d %s",gClientIpAddress,gClientPort,gName);
+					if ((mx < 200) && (my < 50) && (connectEnabled == 1)) {
+						sprintf(sendBuffer,"C %s %d %s", gClientIpAddress, gClientPort, gName);
 
 						sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer);
 						connectEnabled = 0;
-					} else if ((mx>=0) && (mx<200) && (my>=90) && (my<330)) {
-						joueurSel=(my-90)/60;
-						guiltSel=-1;
-					} else if ((mx>=200) && (mx<680) && (my>=0) && (my<90)) {
-						objetSel=(mx-200)/60;
-						guiltSel=-1;
-					} else if ((mx>=100) && (mx<250) && (my>=350) && (my<740)) {
-						joueurSel=-1;
-						objetSel=-1;
-						guiltSel=(my-350)/30;
-					} else if ((mx>=250) && (mx<300) && (my>=350) && (my<740)) {
-						int ind=(my-350)/30;
-						guiltGuess[ind]=1-guiltGuess[ind];
-					} else if ((mx>=500) && (mx<700) && (my>=350) && (my<450) && (goEnabled==1)) {
-						printf("go! joueur=%d objet=%d guilt=%d\n",joueurSel, objetSel, guiltSel);
-						if (guiltSel!=-1) {
-							sprintf(sendBuffer,"G %d %d",gId, guiltSel);
-							// RAJOUTER DU CODE ICI
+						
+					} else if ((mx >= 0) && (mx < 200) && (my >= 90) && (my < 330)) {
+						joueurSel = (my-90)/60;
+						guiltSel = -1;
 
-						} else if ((objetSel!=-1) && (joueurSel==-1)) {
-							sprintf(sendBuffer,"O %d %d",gId, objetSel);
-							// RAJOUTER DU CODE ICI
+					} else if ((mx >= 200) && (mx < 680) && (my >= 0) && (my < 90)) {
+						objetSel = (mx-200)/60;
+						guiltSel = -1;
 
-						} else if ((objetSel!=-1) && (joueurSel!=-1)) {
-							sprintf(sendBuffer,"S %d %d %d",gId, joueurSel,objetSel);
-							// RAJOUTER DU CODE ICI
+					} else if ((mx >= 100) && (mx < 250) && (my >= 350) && (my < 740)) {
+						joueurSel = -1;
+						objetSel = -1;
+						guiltSel = (my-350)/30;
 
+					} else if ((mx >= 250) && (mx < 300) && (my >= 350) && (my < 740)) {
+						int ind = (my-350)/30;
+						guiltGuess[ind] = 1-guiltGuess[ind];
+
+					} else if ((mx >= 500) && (mx < 700) && (my >= 350) && (my < 450) && (goEnabled == 1)) {
+						printf("go! joueur=%d objet=%d guilt=%d\n", joueurSel, objetSel, guiltSel);
+						if (guiltSel != -1) {;
+							sprintf(sendBuffer, "G %d %d", gId, guiltSel);
+							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Envoi de l'accusation
+							goEnabled = 0; // On désactive le bouton après avoir joué
+			
+						} else if ((objetSel != -1) && (joueurSel==-1)) {
+							sprintf(sendBuffer, "O %d %d", gId, objetSel);
+							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Question à tous
+							goEnabled = 0; // On désactive le bouton après avoir joué
+
+						} else if ((objetSel != -1) && (joueurSel!=-1)) {
+							sprintf(sendBuffer, "S %d %d %d", gId, joueurSel, objetSel);
+							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Question à un joueur
+							goEnabled = 0; // On désactive le bouton après avoir joué
+ 
 						}
 					} else {
-						joueurSel=-1;
-						objetSel=-1;
-						guiltSel=-1;
+						joueurSel = -1;
+						objetSel = -1;
+						guiltSel = -1;
 					}
 					break;
 
@@ -277,36 +282,58 @@ int main(int argc, char ** argv) {
 		}
 
 		if (synchro == 1) {
-			printf("consomme |%s|\n",gbuffer);
+			printf("consomme |%s|\n", gbuffer);
 			switch (gbuffer[0]) {
-				// Message 'I' : le joueur recoit son Id
-				case 'I':
+				// Message 'I' (id) : le joueur recoit son Id
+				case 'I' :
 					sscanf(gbuffer, "I %d", &gId);
 					break;
 				
-				// Message 'L' : le joueur recoit la liste des joueurs
+				// Message 'L' (list) : le joueur recoit la liste des joueurs
 				case 'L':
 					sscanf(gbuffer, "L %s %s %s %s", gNames[0], gNames[1], gNames[2], gNames[3]);
 					break;
 				
-				// Message 'D' : le joueur recoit ses trois cartes
+				// Message 'D' (deal) : le joueur recoit ses trois cartes
 				case 'D':
-					// RAJOUTER DU CODE ICI
-
+					sscanf(gbuffer, "D %d %d %d", &b[0], &b[1], &b[2]);
 					break;
 				
-				// Message 'M' : le joueur recoit le n° du joueur courant
+				// Message 'M' (main) : le joueur recoit l'Id du joueur courant
 				// Cela permet d'affecter goEnabled pour autoriser l'affichage du bouton go
 				case 'M':
-					// RAJOUTER DU CODE ICI
-
+					int idJoueurCourant;
+					sscanf(gbuffer, "M %d", &idJoueurCourant);
+					// Si c'est son Id, le bouton go peut s'afficher
+					if (idJoueurCourant == gId) { goEnabled = 1; } 
+					else { goEnabled = 0; }
 					break;
 				
-				// Message 'V' : le joueur recoit une valeur de tableCartes
-				case 'V':
-					// RAJOUTER DU CODE ICI
+				// Message 'V' (value) : le joueur recoit une valeur de tableCartes
+				case 'V' :
+					int p, obj, val;
+					sscanf(gbuffer, "V %d %d %d", &p, &obj, &val);
+					
+					if (val != 100) { tableCartes[p][obj] = val;
+					} else { if (tableCartes[p][obj] == -1) { tableCartes[p][obj] = 100; }} // On écrase seulement si la case était vide
 
 					break;
+				// Message 'W' (win) : le joueur est informé de la fin de la partie avec un gagnant
+				case 'W': {
+					int idGagnant, idCoupable;
+					sscanf(gbuffer, "W %d %d", &idGagnant, &idCoupable);
+					printf("PARTIE TERMINEE : %s a trouvé le coupable (%s) !\n", gNames[idGagnant], nbnoms[idCoupable]);
+					// On peut désactiver le bouton GO pour tout le monde
+					goEnabled = 0;
+					break;
+				}
+				// Message 'F' (failure) : le joueur est informé d'une accusation erronée
+				case 'F': {
+					int idPerdant, idFauxSuspect;
+					sscanf(gbuffer, "F %d %d", &idPerdant, &idFauxSuspect);
+					printf("%s a accusé %s à tort...\n", gNames[idPerdant], nbnoms[idFauxSuspect]);
+					break;
+				}
 			}
 		synchro = 0;
 		
@@ -392,22 +419,20 @@ int main(int argc, char ** argv) {
 			for (j=0;j<8;j++) {
 				if (tableCartes[i][j] != -1) {
 					char mess[10];
-					if (tableCartes[i][j]==100) { sprintf(mess,"*"); }	
-					else {
-						sprintf(mess,"%d",tableCartes[i][j]);
-							SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, mess, col1);
-							SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
+					if (tableCartes[i][j] == 100) { sprintf(mess, "*"); }	
+					else { sprintf(mess, "%d",tableCartes[i][j]); }
+					SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, mess, col1);
+					SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
 
-							SDL_Rect Message_rect;
-							Message_rect.x = 230+j*60;
-							Message_rect.y = 110+i*60;
-							Message_rect.w = surfaceMessage->w;
-							Message_rect.h = surfaceMessage->h;
+					SDL_Rect Message_rect;
+					Message_rect.x = 230+j*60;
+					Message_rect.y = 110+i*60;
+					Message_rect.w = surfaceMessage->w;
+					Message_rect.h = surfaceMessage->h;
 
-							SDL_RenderCopy(renderer, Message, NULL, &Message_rect);
-							SDL_DestroyTexture(Message);
-							SDL_FreeSurface(surfaceMessage);
-					}
+					SDL_RenderCopy(renderer, Message, NULL, &Message_rect);
+					SDL_DestroyTexture(Message);
+					SDL_FreeSurface(surfaceMessage);
 				}
 			}
 		}

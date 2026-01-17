@@ -44,18 +44,17 @@ void error(const char *msg) {
 }
 
 void melangerDeck() {
-        int i;
-        int index1,index2,tmp;
+	int i;
+	int index1,index2,tmp;
 
-        for (i=0;i<1000;i++)
-        {
-                index1=rand()%13;
-                index2=rand()%13;
+	for (i=0;i<1000;i++) {
+		index1=rand()%13;
+		index2=rand()%13;
 
-                tmp=deck[index1];
-                deck[index1]=deck[index2];
-                deck[index2]=tmp;
-        }
+		tmp=deck[index1];
+		deck[index1]=deck[index2];
+		deck[index2]=tmp;
+	}
 }
 
 void createTable() {
@@ -66,10 +65,10 @@ void createTable() {
 	// Le coupable est la carte d'indice 12
 	int i, j, c;
 
-	for (i=0;i<4;i++) { for (j=0;j<8;j++) { tableCartes[i][j]=0; } }
+	for (i = 0; i < 4; i++) { for (j=0;j<8;j++) { tableCartes[i][j]=0; } }
 
-	for (i=0;i<4;i++) {
-		for (j=0; j<3; j++) {
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 3; j++) {
 			c = deck[i*3 + j];
 			switch (c) {
 				case 0: // Sebastian Moran
@@ -250,7 +249,7 @@ int main(int argc, char *argv[]) {
 
         printf("Received packet from %s:%d\nData: [%s]\n\n", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port), buffer);
 
-        if (fsmServer==0) {
+        if (fsmServer == 0) {
         	switch (buffer[0]) {
                 	case 'C':
 						sscanf(buffer,"%c %s %d %s", &com, clientIpAddress, &clientPort, clientName);
@@ -266,50 +265,96 @@ int main(int argc, char *argv[]) {
 
 						// rechercher l'id du joueur qui vient de se connecter
 						id = findClientByName(clientName);
-						printf("id=%d\n",id);
+						printf("id=%d\n", id);
 
 						// lui envoyer un message personnel pour lui communiquer son id
+						// message 'I' : id
 						sprintf(reply,"I %d",id);
 						sendMessageToClient(tcpClients[id].ipAddress, tcpClients[id].port, reply);
 
-						// Envoyer un message broadcast pour communiquer a tout le monde la liste des joueurs actuellement
-						// connectes
+						// Envoyer un message broadcast pour communiquer a tout le monde la liste des joueurs actuellement connectes
+						// message 'L' : list
 						sprintf(reply,"L %s %s %s %s", tcpClients[0].name, tcpClients[1].name, tcpClients[2].name, tcpClients[3].name);
 						broadcastMessage(reply);
 
 						// Si le nombre de joueurs atteint 4, alors on peut lancer le jeu
-                        if (nbClients==4) {
-						// On envoie ses cartes au joueur 0, ainsi que la ligne qui lui correspond dans tableCartes
-						// RAJOUTER DU CODE ICI
+                        if (nbClients == 4) {
+							// On distribue les cartes a chaque joueur
+							for (int i = 0; i < 4; i++) {
+								// On envoie ses 3 cartes au joueur i 
+								// message 'D' : deal
+								sprintf(reply, "D %d %d %d", deck[i*3], deck[i*3+1], deck[i*3+2]);
+								sendMessageToClient(tcpClients[i].ipAddress, tcpClients[i].port, reply);
 
-						// On envoie ses cartes au joueur 1, ainsi que la ligne qui lui correspond dans tableCartes
-						// RAJOUTER DU CODE ICI
+								// On envoie la ligne qui correspond au joueur j dans tableCartes
+								// message 'V' : value
+								for (int j = 0; j < 8; j++) {
+									sprintf(reply, "V %d %d %d", i, j, tableCartes[i][j]);
+									sendMessageToClient(tcpClients[i].ipAddress, tcpClients[i].port, reply);
+								}
+							}
 
-						// On envoie ses cartes au joueur 2, ainsi que la ligne qui lui correspond dans tableCartes
-						// RAJOUTER DU CODE ICI
-
-						// On envoie ses cartes au joueur 3, ainsi que la ligne qui lui correspond dans tableCartes
-						// RAJOUTER DU CODE ICI
-
-						// On envoie enfin un message a tout le monde pour definir qui est le joueur courant=0
-						// RAJOUTER DU CODE ICI
-
+							// On définit le joueur 0 comme joueur courant et on informe tout le monde
+							// message 'M' : main
+							sprintf(reply, "M %d", joueurCourant);
+							broadcastMessage(reply);
                         fsmServer = 1;
 						}
 					break;
                 }
-		} else if (fsmServer==1) {
+		} else if (fsmServer == 1) {
+			int idDemandeur, objRecherche, idCible;
 			switch (buffer[0]) {
-				case 'G':
-					// RAJOUTER DU CODE ICI
+				case 'G': // Guilt
+					int idAccuseur, suspectChoisi;
+					sscanf(buffer, "G %d %d", &idAccuseur, &suspectChoisi);
+
+					if (suspectChoisi == deck[12]) { // La carte du véritable coupable est stockée à l'indice 12 du deck
+						// Le joueur a trouvé ! On envoie un message de victoire (W pour Win)
+						sprintf(reply, "W %d %d", idAccuseur, suspectChoisi);
+						broadcastMessage(reply);
+					} else {
+						// Le joueur s'est trompé. On informe tout le monde de son erreur
+						// (On pourrait aussi l'éliminer, mais ici on va juste notifier l'échec)
+						sprintf(reply, "F %d %d", idAccuseur, suspectChoisi);
+						broadcastMessage(reply);
+						
+						// Le tour passe au joueur suivant
+						joueurCourant = (joueurCourant + 1) % 4;
+						sprintf(reply, "M %d", joueurCourant);
+						broadcastMessage(reply);
+					}
 					break;
 
-				case 'O':
-					// RAJOUTER DU CODE ICI
+				case 'O': // Object
+					sscanf(buffer, "O %d %d", &idDemandeur, &objRecherche);
+					
+					for (i = 0; i < 4; i++) {
+						// Si le joueur possède au moins 1 objet, on envoie 100 (le code pour '*')
+						// Sinon, on envoie 0.
+						int valeurBinaire = (tableCartes[i][objRecherche] > 0) ? 100 : 0;
+						
+						sprintf(reply, "V %d %d %d", i, objRecherche, valeurBinaire);
+						broadcastMessage(reply);
+					}
+					
+					// Changement de tour
+					joueurCourant = (joueurCourant + 1) % 4;
+					sprintf(reply, "M %d", joueurCourant);
+					broadcastMessage(reply);
 					break;
 
-				case 'S':
-					// RAJOUTER DU CODE ICI
+				case 'S': // Specific
+					sscanf(buffer, "S %d %d %d", &idDemandeur, &idCible, &objRecherche);
+					
+					// On envoie à tout le monde la quantité que le joueur cible possède de l'objet recherché 
+					sprintf(reply, "V %d %d %d", idCible, objRecherche, tableCartes[idCible][objRecherche]);
+					broadcastMessage(reply);
+					
+					// Changement de tour
+					joueurCourant = (joueurCourant + 1) % 4;
+					sprintf(reply, "M %d", joueurCourant);
+					broadcastMessage(reply);
 					break;
 				
 				default:
