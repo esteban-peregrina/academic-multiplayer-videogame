@@ -45,6 +45,25 @@ char *nbnoms[] = {
 	"Mary Morstan", 
 	"James Moriarty"
 };
+int totalObjets[8] = {5, 5, 5, 5, 4, 3, 3, 3}; 
+
+// caracCartes[ID_SUSPECT][ID_OBJET]
+// On met 1 si le suspect possède l'objet, 0 sinon.
+int caracCartes[13][8] = {
+    {0,0,1,0,0,0,0,1}, // 0: Moran (Poing, Crane)
+    {0,1,0,0,0,1,0,1}, // 1: Adler (Ampoule, Collier, Crane)
+    {0,0,0,1,1,0,1,0}, // 2: Lestrade (Couronne, Carnet, Oeil)
+    {0,0,1,1,1,0,0,0}, // 3: Gregson (Poing, Couronne, Carnet)
+    {0,1,0,1,0,0,0,0}, // 4: Baynes (Ampoule, Couronne)
+    {0,0,1,1,0,0,0,0}, // 5: Bradstreet (Poing, Couronne)
+    {1,0,0,1,0,0,1,0}, // 6: Hopkins (Pipe, Couronne, Oeil)
+    {1,1,1,0,0,0,0,0}, // 7: Sherlock (Pipe, Ampoule, Poing)
+    {1,0,1,0,0,0,1,0}, // 8: Watson (Pipe, Poing, Oeil)
+    {1,1,0,0,1,0,0,0}, // 9: Mycroft (Pipe, Ampoule, Carnet)
+    {1,0,0,0,0,1,0,0}, // 10: Hudson (Pipe, Collier)
+    {0,0,0,0,1,1,0,0}, // 11: Morstan (Carnet, Collier)
+    {0,1,0,0,0,0,0,1}  // 12: Moriarty (Ampoule, Crane)
+};
 
 volatile int synchro;
 
@@ -134,6 +153,8 @@ int main(int argc, char **argv) {
 	char sendBuffer[256];
 	char lname[256];
 	int id;
+
+	int playerAlive[4] = {1, 1, 1, 1}; // 1 = Vivant, 0 = Éliminé
 
 	if (argc < 6) {
 		printf("Usage: \"<bin> <Main server ip address> <Main server port> <Client ip address> <Client port> <player name>\"\n");
@@ -327,16 +348,63 @@ int main(int argc, char **argv) {
 					goEnabled = 0;
 					break;
 				}
-				// Message 'F' (failure) : le joueur est informé d'une accusation erronée
+				// Message 'F' (failure) : le joueur est informé secrètement qu'il a perdu
 				case 'F': {
+					int idPerdant, idVeritableCoupable;
+					sscanf(gbuffer, "F %d %d", &idPerdant, &idVeritableCoupable);
+					printf("DOMMAGE ! Vous avez perdu. Le vrai coupable était : %s\n", nbnoms[idVeritableCoupable]);
+					
+					// Le joueur ne pourra plus jamais cliquer sur "GO"
+					playerAlive[gId] = 0; // Il est eleminé
+					goEnabled = 0;
+					break;
+				}
+				// Message 'E' (error) : le joueur est informé publiquement d'une accusation erronée
+				case 'E': { // Message public pour l'échec
 					int idPerdant, idFauxSuspect;
-					sscanf(gbuffer, "F %d %d", &idPerdant, &idFauxSuspect);
-					printf("%s a accusé %s à tort...\n", gNames[idPerdant], nbnoms[idFauxSuspect]);
+					sscanf(gbuffer, "E %d %d", &idPerdant, &idFauxSuspect);
+					printf("L'accusation de %s contre %s était fausse ! Il ne peut plus jouer.\n", gNames[idPerdant], nbnoms[idFauxSuspect]);
+					playerAlive[idPerdant] = 0; // Un autre joueur est éliminé
+					guiltGuess[idFauxSuspect] = 1; // On élimine officiellement ce suspect de la liste
 					break;
 				}
 			}
 		synchro = 0;
 		
+		}
+
+		// On parcourt chaque type d'objet (colonne)
+		for (j = 0; j < 8; j++) {
+			int sommeObjetsTrouves = 0;
+			int colonneEstComplete = 1;
+
+			for (i = 0; i < 4; i++) {
+				if (tableCartes[i][j] == -1 || tableCartes[i][j] == 100) {
+					colonneEstComplete = 0;
+					break;
+				}
+				sommeObjetsTrouves += tableCartes[i][j];
+			}
+
+			if (colonneEstComplete) {
+				if (sommeObjetsTrouves == totalObjets[j]) {
+					// Le coupable n'a PAS cet objet.
+					// On élimine ceux qui l'ont.
+					for (int k = 0; k < 13; k++) {
+						if (caracCartes[k][j] == 1) {
+							guiltGuess[k] = 1;
+						}
+					}
+				} else if (sommeObjetsTrouves < totalObjets[j]) {
+					// Le coupable possède OBLIGATOIREMENT cet objet.
+					// On élimine tous ceux qui ne l'ont pas.
+					for (int k = 0; k < 13; k++) {
+						if (caracCartes[k][j] == 0) {
+							guiltGuess[k] = 1;
+						}
+					}
+				}
+			}
 		}
 
 		SDL_Rect dstrect_grille = { 512-250, 10, 500, 350 };
@@ -400,21 +468,21 @@ int main(int argc, char **argv) {
 			SDL_FreeSurface(surfaceMessage);
 		}
 
-		for (i=0;i<13;i++) {
-			SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, nbnoms[i], col1);
+		for (i=0; i<13; i++) {
+			SDL_Color textColor = {0, 0, 0}; // Noir par défaut
+			if (guiltGuess[i]) {
+				textColor.r = 150; textColor.g = 150; textColor.b = 150; // Gris si éliminé
+			}
+
+			SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, nbnoms[i], textColor);
 			SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
 
-			SDL_Rect Message_rect;
-			Message_rect.x = 105;
-			Message_rect.y = 350+i*30;
-			Message_rect.w = surfaceMessage->w;
-			Message_rect.h = surfaceMessage->h;
-
+			SDL_Rect Message_rect = {105, 350+i*30, surfaceMessage->w, surfaceMessage->h};
 			SDL_RenderCopy(renderer, Message, NULL, &Message_rect);
+			
 			SDL_DestroyTexture(Message);
 			SDL_FreeSurface(surfaceMessage);
 		}
-
 		for (i=0;i<4;i++) {
 			for (j=0;j<8;j++) {
 				if (tableCartes[i][j] != -1) {
@@ -672,6 +740,35 @@ int main(int argc, char **argv) {
 				SDL_FreeSurface(surfaceMessage);
 			}
 
+		}
+
+		// Griser les noms des autres joueurs éliminés dans la liste de gauche
+		for (i = 0; i < 4; i++) {
+			if (playerAlive[i] == 0) {
+				SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+				SDL_SetRenderDrawColor(renderer, 100, 100, 100, 150); // Gris transparent
+				SDL_Rect rectMort = {0, 90 + i * 60, 200, 60};
+				SDL_RenderFillRect(renderer, &rectMort);
+			}
+		}
+
+		// Si le joueur est éliminé, griser toute la zone d'action (le bas et le centre)
+		if (playerAlive[gId] == 0) {
+			SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+			SDL_SetRenderDrawColor(renderer, 50, 50, 50, 180); // Voile sombre
+			
+			// On couvre la zone des boutons et de sélection
+			SDL_Rect pleinEcran = {0, 0, 1024, 768}; 
+			SDL_RenderFillRect(renderer, &pleinEcran);
+
+			// Afficher un message "ÉLIMINÉ" au centre
+			SDL_Color rouge = {255, 0, 0};
+			SDL_Surface* sElim = TTF_RenderText_Solid(Sans, "VOUS ETES ELIMINE - SPECTATEUR", rouge);
+			SDL_Texture* tElim = SDL_CreateTextureFromSurface(renderer, sElim);
+			SDL_Rect rElim = {300, 350, sElim->w * 2, sElim->h * 2};
+			SDL_RenderCopy(renderer, tElim, NULL, &rElim);
+			SDL_FreeSurface(sElim);
+			SDL_DestroyTexture(tElim);
 		}
 
 		SDL_RenderPresent(renderer);

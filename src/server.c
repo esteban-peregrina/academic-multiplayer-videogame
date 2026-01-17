@@ -16,6 +16,7 @@ struct _client {
 } tcpClients[4];
 
 int nbClients; 
+int joueurActif[4] = {1, 1, 1, 1}; // 1 = peut jouer, 0 = a perdu son droit de jouer
 int fsmServer;
 int deck[13]={0,1,2,3,4,5,6,7,8,9,10,11,12};
 int tableCartes[4][8];
@@ -65,7 +66,7 @@ void createTable() {
 	// Le coupable est la carte d'indice 12
 	int i, j, c;
 
-	for (i = 0; i < 4; i++) { for (j=0;j<8;j++) { tableCartes[i][j]=0; } }
+	for (i = 0; i < 4; i++) { for (j = 0; j < 8; j++) { tableCartes[i][j] = 0; } }
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 3; j++) {
@@ -309,18 +310,26 @@ int main(int argc, char *argv[]) {
 					int idAccuseur, suspectChoisi;
 					sscanf(buffer, "G %d %d", &idAccuseur, &suspectChoisi);
 
-					if (suspectChoisi == deck[12]) { // La carte du véritable coupable est stockée à l'indice 12 du deck
-						// Le joueur a trouvé ! On envoie un message de victoire (W pour Win)
+					if (suspectChoisi == deck[12]) {
 						sprintf(reply, "W %d %d", idAccuseur, suspectChoisi);
 						broadcastMessage(reply);
 					} else {
-						// Le joueur s'est trompé. On informe tout le monde de son erreur
-						// (On pourrait aussi l'éliminer, mais ici on va juste notifier l'échec)
-						sprintf(reply, "F %d %d", idAccuseur, suspectChoisi);
+						// Le joueur a tort, il devient inactif pour la suite
+						joueurActif[idAccuseur] = 0; 
+
+						// On lui envoie secrètement l'identité du vrai coupable (Message 'F')
+						sprintf(reply, "F %d %d", idAccuseur, deck[12]);
+						sendMessageToClient(tcpClients[idAccuseur].ipAddress, tcpClients[idAccuseur].port, reply);
+
+						// On informe les autres qu'il s'est trompé (sans dire qui était le coupable)
+						sprintf(reply, "E %d %d", idAccuseur, suspectChoisi); 
 						broadcastMessage(reply);
-						
-						// Le tour passe au joueur suivant
-						joueurCourant = (joueurCourant + 1) % 4;
+
+						// On cherche le prochain joueur actif
+						do {
+							joueurCourant = (joueurCourant + 1) % 4;
+						} while (joueurActif[joueurCourant] == 0);
+
 						sprintf(reply, "M %d", joueurCourant);
 						broadcastMessage(reply);
 					}
@@ -339,7 +348,9 @@ int main(int argc, char *argv[]) {
 					}
 					
 					// Changement de tour
-					joueurCourant = (joueurCourant + 1) % 4;
+					do {
+						joueurCourant = (joueurCourant + 1) % 4;
+					} while (joueurActif[joueurCourant] == 0);
 					sprintf(reply, "M %d", joueurCourant);
 					broadcastMessage(reply);
 					break;
@@ -352,7 +363,9 @@ int main(int argc, char *argv[]) {
 					broadcastMessage(reply);
 					
 					// Changement de tour
-					joueurCourant = (joueurCourant + 1) % 4;
+					do {
+						joueurCourant = (joueurCourant + 1) % 4;
+					} while (joueurActif[joueurCourant] == 0);
 					sprintf(reply, "M %d", joueurCourant);
 					broadcastMessage(reply);
 					break;
