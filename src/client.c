@@ -28,6 +28,9 @@ int tableCartes[4][8];
 int b[3];
 int goEnabled;
 int connectEnabled;
+int idGagnant = -1;   // -1 tant que personne n'a gagné
+int idCoupable = -1;  // Pour afficher le nom du coupable à la fin
+
 
 char *nbobjets[] = {"5","5","5","5","4","3","3","3"};
 char *nbnoms[] = {
@@ -150,7 +153,7 @@ int main(int argc, char **argv) {
     int quit = 0;
     SDL_Event event;
 	int mx, my;
-	char sendBuffer[256];
+	char sendBuffer[1024];
 	char lname[256];
 	int id;
 
@@ -341,10 +344,8 @@ int main(int argc, char **argv) {
 					break;
 				// Message 'W' (win) : le joueur est informé de la fin de la partie avec un gagnant
 				case 'W': {
-					int idGagnant, idCoupable;
-					sscanf(gbuffer, "W %d %d", &idGagnant, &idCoupable);
+					sscanf(gbuffer, "W %d %d", &idGagnant, &idCoupable); // On stocke les infos
 					printf("PARTIE TERMINEE : %s a trouvé le coupable (%s) !\n", gNames[idGagnant], nbnoms[idCoupable]);
-					// On peut désactiver le bouton GO pour tout le monde
 					goEnabled = 0;
 					break;
 				}
@@ -352,10 +353,11 @@ int main(int argc, char **argv) {
 				case 'F': {
 					int idPerdant, idVeritableCoupable;
 					sscanf(gbuffer, "F %d %d", &idPerdant, &idVeritableCoupable);
+					
+					// On utilise l'ID envoyé par le serveur plutôt que gId pour être sûr
+					playerAlive[idPerdant] = 0; 
 					printf("DOMMAGE ! Vous avez perdu. Le vrai coupable était : %s\n", nbnoms[idVeritableCoupable]);
 					
-					// Le joueur ne pourra plus jamais cliquer sur "GO"
-					playerAlive[gId] = 0; // Il est eleminé
 					goEnabled = 0;
 					break;
 				}
@@ -363,9 +365,10 @@ int main(int argc, char **argv) {
 				case 'E': { // Message public pour l'échec
 					int idPerdant, idFauxSuspect;
 					sscanf(gbuffer, "E %d %d", &idPerdant, &idFauxSuspect);
-					printf("L'accusation de %s contre %s était fausse ! Il ne peut plus jouer.\n", gNames[idPerdant], nbnoms[idFauxSuspect]);
-					playerAlive[idPerdant] = 0; // Un autre joueur est éliminé
-					guiltGuess[idFauxSuspect] = 1; // On élimine officiellement ce suspect de la liste
+					
+					playerAlive[idPerdant] = 0; // Marque le joueur comme éliminé
+					guiltGuess[idFauxSuspect] = 1; // Élimine le suspect pour tout le monde
+					printf("L'accusation de %s contre %s était fausse !\n", gNames[idPerdant], nbnoms[idFauxSuspect]);
 					break;
 				}
 			}
@@ -666,10 +669,22 @@ int main(int argc, char **argv) {
 		SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
 		// Afficher les suppositions
-		for (i=0;i<13;i++) {
+		for (i = 0; i < 13; i++) {
+			// Marquage automatique des cartes en main
+			if (b[0] != -1 && i == b[0]) guiltGuess[i] = 1;
+			if (b[1] != -1 && i == b[1]) guiltGuess[i] = 1;
+			if (b[2] != -1 && i == b[2]) guiltGuess[i] = 1;
+
+			// Dessin de la croix si le suspect est éliminé
 			if (guiltGuess[i]) {
-				SDL_RenderDrawLine(renderer, 250,350+i*30,300,380+i*30);
-				SDL_RenderDrawLine(renderer, 250,380+i*30,300,350+i*30);
+				// On règle la couleur sur Rouge
+				SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+				
+				// On dessine la croix dans la case dédiée (X entre 250 et 300)
+				// Ligne descendante (\)
+				SDL_RenderDrawLine(renderer, 250, 350 + i*30, 300, 380 + i*30);
+				// Ligne montante (/)
+				SDL_RenderDrawLine(renderer, 250, 380 + i*30, 300, 350 + i*30);
 			}
 		}
 
@@ -710,12 +725,12 @@ int main(int argc, char **argv) {
 		}
 
 		// Le bouton go
-		if (goEnabled==1) {
+		if (goEnabled == 1) {
 			SDL_Rect dstrect = { 500, 350, 200, 150 };
 			SDL_RenderCopy(renderer, texture_gobutton, NULL, &dstrect);
 		}
 		// Le bouton connect
-		if (connectEnabled==1) {
+		if (connectEnabled == 1) {
 			SDL_Rect dstrect = { 0, 0, 200, 50 };
 			SDL_RenderCopy(renderer, texture_connectbutton, NULL, &dstrect);
 		}
@@ -724,7 +739,7 @@ int main(int argc, char **argv) {
 		//SDL_RenderDrawLine(renderer, 0, 0, 200, 200);
 
 		SDL_Color col = {0, 0, 0};
-		for (i=0;i<4;i++) {
+		for (i = 0; i < 4; i++) {
 			if (strlen(gNames[i])>0) {
 				SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, gNames[i], col);
 				SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
@@ -746,29 +761,68 @@ int main(int argc, char **argv) {
 		for (i = 0; i < 4; i++) {
 			if (playerAlive[i] == 0) {
 				SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-				SDL_SetRenderDrawColor(renderer, 100, 100, 100, 150); // Gris transparent
+				SDL_SetRenderDrawColor(renderer, 100, 100, 100, 180); 
 				SDL_Rect rectMort = {0, 90 + i * 60, 200, 60};
 				SDL_RenderFillRect(renderer, &rectMort);
 			}
 		}
 
 		// Si le joueur est éliminé, griser toute la zone d'action (le bas et le centre)
-		if (playerAlive[gId] == 0) {
+		if (idGagnant != -1) {
+			// PRIORITÉ : ÉCRAN DE FIN DE PARTIE (Gagné ou Perdu)
 			SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-			SDL_SetRenderDrawColor(renderer, 50, 50, 50, 180); // Voile sombre
-			
-			// On couvre la zone des boutons et de sélection
+			SDL_SetRenderDrawColor(renderer, 0, 0, 0, 220); 
+			SDL_Rect pleinEcran = {0, 0, 1024, 768};
+			SDL_RenderFillRect(renderer, &pleinEcran);
+
+			char messageFinal[512];
+			SDL_Color couleurTexte = {255, 255, 255, 255}; // Blanc par défaut
+
+			if (idGagnant == gId) {
+				couleurTexte = (SDL_Color){0, 255, 0, 255}; // Vert
+				sprintf(messageFinal, "VICTOIRE !");
+			} else if (idGagnant == -2) {
+				couleurTexte = (SDL_Color){255, 165, 0, 255}; // Orange
+				sprintf(messageFinal, "TOUT LE MONDE A PERDU...");
+			} else {
+				couleurTexte = (SDL_Color){255, 50, 50, 255}; // Rouge
+				snprintf(messageFinal, sizeof(messageFinal), "DEFAITE... %s a gagne !", gNames[idGagnant]);
+			}
+
+			// Affichage du message principal
+			SDL_Surface* sFin = TTF_RenderText_Solid(Sans, messageFinal, couleurTexte);
+			SDL_Texture* tFin = SDL_CreateTextureFromSurface(renderer, sFin);
+			SDL_Rect rFin = {512 - (sFin->w), 300, sFin->w * 2, sFin->h * 2};
+			SDL_RenderCopy(renderer, tFin, NULL, &rFin);
+
+			// Affichage du nom du coupable en blanc
+			char infoCoupable[512];
+			snprintf(infoCoupable, sizeof(infoCoupable), "Le criminel etait : %s", nbnoms[idCoupable]);
+			SDL_Color blanc = {255, 255, 255, 255};
+			SDL_Surface* sCoup = TTF_RenderText_Solid(Sans, infoCoupable, blanc);
+			SDL_Texture* tCoup = SDL_CreateTextureFromSurface(renderer, sCoup);
+			SDL_Rect rCoup = {512 - (sCoup->w / 2), 450, sCoup->w, sCoup->h};
+			SDL_RenderCopy(renderer, tCoup, NULL, &rCoup);
+
+			SDL_FreeSurface(sFin); SDL_DestroyTexture(tFin);
+			SDL_FreeSurface(sCoup); SDL_DestroyTexture(tCoup);
+
+		} else if (gId >= 0 && gId < 4 && playerAlive[gId] == 0) {
+			// SECONDAIRE : ÉCRAN ÉLIMINÉ (Seulement si la partie n'est pas finie)
+			SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+			SDL_SetRenderDrawColor(renderer, 20, 20, 20, 200); 
 			SDL_Rect pleinEcran = {0, 0, 1024, 768}; 
 			SDL_RenderFillRect(renderer, &pleinEcran);
 
-			// Afficher un message "ÉLIMINÉ" au centre
-			SDL_Color rouge = {255, 0, 0};
+			SDL_Color rouge = {255, 50, 50, 255};
 			SDL_Surface* sElim = TTF_RenderText_Solid(Sans, "VOUS ETES ELIMINE - SPECTATEUR", rouge);
-			SDL_Texture* tElim = SDL_CreateTextureFromSurface(renderer, sElim);
-			SDL_Rect rElim = {300, 350, sElim->w * 2, sElim->h * 2};
-			SDL_RenderCopy(renderer, tElim, NULL, &rElim);
-			SDL_FreeSurface(sElim);
-			SDL_DestroyTexture(tElim);
+			if (sElim) {
+				SDL_Texture* tElim = SDL_CreateTextureFromSurface(renderer, sElim);
+				SDL_Rect rElim = {250, 350, sElim->w * 2, sElim->h * 2};
+				SDL_RenderCopy(renderer, tElim, NULL, &rElim);
+				SDL_FreeSurface(sElim);
+				SDL_DestroyTexture(tElim);
+			}
 		}
 
 		SDL_RenderPresent(renderer);

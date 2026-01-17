@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
 						sscanf(buffer,"%c %s %d %s", &com, clientIpAddress, &clientPort, clientName);
 						printf("COM=%c ipAddress=%s port=%d name=%s\n",com, clientIpAddress, clientPort, clientName);
 
-						// fsmServer==0 alors j'attends les connexions de tous les joueurs
+						// fsmServer==0 alors on attend les connexions de tous les joueurs
 						strcpy(tcpClients[nbClients].ipAddress,clientIpAddress);
 						tcpClients[nbClients].port=clientPort;
 						strcpy(tcpClients[nbClients].name,clientName);
@@ -317,21 +317,30 @@ int main(int argc, char *argv[]) {
 						// Le joueur a tort, il devient inactif pour la suite
 						joueurActif[idAccuseur] = 0; 
 
-						// On lui envoie secrètement l'identité du vrai coupable (Message 'F')
-						sprintf(reply, "F %d %d", idAccuseur, deck[12]);
-						sendMessageToClient(tcpClients[idAccuseur].ipAddress, tcpClients[idAccuseur].port, reply);
+						int nbJoueursRestants = 0;
+						for (int k = 0; k < 4; k++) {
+							if (joueurActif[k] == 1) nbJoueursRestants++;
+						}
 
-						// On informe les autres qu'il s'est trompé (sans dire qui était le coupable)
-						sprintf(reply, "E %d %d", idAccuseur, suspectChoisi); 
-						broadcastMessage(reply);
+						if (nbJoueursRestants == 0) {
+							// Cas spécial : tout le monde s'est trompé ! 
+							// On envoie un message 'W' avec -2 comme ID de gagnant pour signifier "Aucun vainqueur"
+							sprintf(reply, "W -2 %d", deck[12]);
+							broadcastMessage(reply);
+						} else {
+							sprintf(reply, "F %d %d", idAccuseur, deck[12]);
+							sendMessageToClient(tcpClients[idAccuseur].ipAddress, tcpClients[idAccuseur].port, reply);
 
-						// On cherche le prochain joueur actif
-						do {
-							joueurCourant = (joueurCourant + 1) % 4;
-						} while (joueurActif[joueurCourant] == 0);
+							sprintf(reply, "E %d %d", idAccuseur, suspectChoisi); 
+							broadcastMessage(reply);
 
-						sprintf(reply, "M %d", joueurCourant);
-						broadcastMessage(reply);
+							do {
+								joueurCourant = (joueurCourant + 1) % 4;
+							} while (joueurActif[joueurCourant] == 0);
+
+							sprintf(reply, "M %d", joueurCourant);
+							broadcastMessage(reply);
+						}
 					}
 					break;
 
