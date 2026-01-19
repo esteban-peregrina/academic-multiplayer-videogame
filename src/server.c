@@ -303,20 +303,23 @@ int main(int argc, char *argv[]) {
 						}
 					break;
                 }
-		} else if (fsmServer == 1) {
+		} else if (fsmServer == 1) { 
 			int idDemandeur, objRecherche, idCible;
 			switch (buffer[0]) {
 				case 'G': // Guilt
 					int idAccuseur, suspectChoisi;
 					sscanf(buffer, "G %d %d", &idAccuseur, &suspectChoisi);
-
+					
+					//On teste si le joueur a trouver le coupable
 					if (suspectChoisi == deck[12]) {
+						//Le joueur a trouvé le bon coupable, il gagne et la partie s'arrête
 						sprintf(reply, "W %d %d", idAccuseur, suspectChoisi);
 						broadcastMessage(reply);
 					} else {
 						// Le joueur a tort, il devient inactif pour la suite
 						joueurActif[idAccuseur] = 0; 
 
+						//On met à jour le nombre de joueur
 						int nbJoueursRestants = 0;
 						for (int k = 0; k < 4; k++) {
 							if (joueurActif[k] == 1) nbJoueursRestants++;
@@ -328,12 +331,15 @@ int main(int argc, char *argv[]) {
 							sprintf(reply, "W -2 %d", deck[12]);
 							broadcastMessage(reply);
 						} else {
+							//On envoie au joueur perdant le véritable coupable
 							sprintf(reply, "F %d %d", idAccuseur, deck[12]);
 							sendMessageToClient(tcpClients[idAccuseur].ipAddress, tcpClients[idAccuseur].port, reply);
 
+							//On envoie au joueur restant le suspect choisie par le joueur perdant
 							sprintf(reply, "E %d %d", idAccuseur, suspectChoisi); 
 							broadcastMessage(reply);
 
+							//On passe au joueur suivant, si celui si est éliminé on cherche le prochain joueur actif
 							do {
 								joueurCourant = (joueurCourant + 1) % 4;
 							} while (joueurActif[joueurCourant] == 0);
@@ -356,7 +362,7 @@ int main(int argc, char *argv[]) {
 						broadcastMessage(reply);
 					}
 					
-					// Changement de tour
+					// Changement de tour, on passe au joueur suivant
 					do {
 						joueurCourant = (joueurCourant + 1) % 4;
 					} while (joueurActif[joueurCourant] == 0);
@@ -371,7 +377,7 @@ int main(int argc, char *argv[]) {
 					sprintf(reply, "V %d %d %d", idCible, objRecherche, tableCartes[idCible][objRecherche]);
 					broadcastMessage(reply);
 					
-					// Changement de tour
+					// Changement de tour, on passe au joueur suivant
 					do {
 						joueurCourant = (joueurCourant + 1) % 4;
 					} while (joueurActif[joueurCourant] == 0);
