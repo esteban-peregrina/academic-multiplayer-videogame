@@ -8,8 +8,12 @@ Le code d'origine et à completer est fournie par M Pécheux.
 Pour compiler le code, pour les clients et le serveur, utiliser la fonction make après avoir récupérer les fichiers.
 Pour lancer le code en tant que serveur utilisé la commande
 
+./bin/Serveur
+
 
 Pour lancer le code en tant que client utilisé la commande 
+
+./bin/Sherlock13
 
 
 
