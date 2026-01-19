@@ -16,3 +16,5 @@ Pour lancer le code en tant que client utilisé la commande
 Pour lancer une partie, il est nécessaire d'avoir :
 - 1 terminal actif comme serveur pour que les clients puissent rejoindre
 - 4 terminaux actif comme client pour que la partie se lancent
+
+Les images utilisés sont contenus dans le fichier PNG et le font du plateau dans le fichier FONT.
