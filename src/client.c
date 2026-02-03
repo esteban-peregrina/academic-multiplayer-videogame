@@ -1,4 +1,4 @@
-#include <SDL.h>        
+#include <SDL.h>
 #include <SDL_image.h>        
 #include <SDL_ttf.h>        
 #include <pthread.h>
@@ -10,29 +10,36 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+// Variable de synchronisation pour le thread serveur tcp
 pthread_t thread_serveur_tcp_id;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-char gbuffer[256];
-char gServerIpAddress[256];
-int gServerPort;
+
+// --- Variables globales (g) --- //
+char gbuffer[256]; // Buffer pour la communication TCP
+// Adresse IP et port du serveur principal
+char gServerIpAddress[256]; 
+int gServerPort; 
+// Adresse IP et port du client
 char gClientIpAddress[256];
 int gClientPort;
+// Information du joueur
 char gName[256];
-char gNames[4][256];
-int gId;
-int joueurSel;
-int objetSel;
-int guiltSel;
-int guiltGuess[13];
-int tableCartes[4][8];
-int b[3];
-int goEnabled;
-int connectEnabled;
+char gNames[4][256]; // Noms des joueurs
+int gId; // Id du joueur
+
+// État du jeu 
+int joueurSel; // Booléen de sélection d'un joueur
+int objetSel; // Booléen de sélection d'un objet
+int guiltSel; // Booléen de sélection d'un suspect pour l'accusation
+int guiltGuess[13]; // Tableau des suspects éliminés (1 = éliminé, 0 = possible)
+int tableCartes[4][8]; // tableCartes[ID_JOUEUR][ID_OBJET] = valeur connue (ou -1 si inconnue)
+int b[3]; // Cartes en main du joueur
+int goEnabled; // Booléen d'activation du bouton "Go"
+int connectEnabled; // Booléen d'activation du bouton "Connect"
 int idGagnant = -1;   // -1 tant que personne n'a gagné
 int idCoupable = -1;  // Pour afficher le nom du coupable à la fin
 
-
-char *nbobjets[] = {"5","5","5","5","4","3","3","3"};
+char *nbobjets[] = {"5","5","5","5","4","3","3","3"}; // Nombre total d'objets de chaque type
 char *nbnoms[] = {
 	"Sebastian Moran", 
 	"irene Adler", 
@@ -47,8 +54,8 @@ char *nbnoms[] = {
   	"Mrs. Hudson", 
 	"Mary Morstan", 
 	"James Moriarty"
-};
-int totalObjets[8] = {5, 5, 5, 5, 4, 3, 3, 3}; 
+}; // Noms des suspects
+int totalObjets[8] = {5, 5, 5, 5, 4, 3, 3, 3}; // Total d'objets de chaque type (version int pour les calculs)
 
 // caracCartes[ID_SUSPECT][ID_OBJET]
 // On met 1 si le suspect possède l'objet, 0 sinon.
@@ -68,9 +75,12 @@ int caracCartes[13][8] = {
     {0,1,0,0,0,0,0,1}  // 12: Moriarty (Ampoule, Crane)
 };
 
-volatile int synchro;
+volatile int synchro; // Variable de synchronisation entre le thread principal et le thread serveur tcp
 
 void *fn_serveur_tcp(void *arg) {
+	/*
+	Fonction du thread serveur tcp.
+	*/
 	int sockfd, newsockfd, portno;
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
@@ -119,6 +129,9 @@ void *fn_serveur_tcp(void *arg) {
 }
 
 void sendMessageToServer(char *ipAddress, int portno, char *mess) {
+	/*
+	Fonction d'envoi d'un message au serveur principal.
+	*/
     int sockfd, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -147,15 +160,19 @@ void sendMessageToServer(char *ipAddress, int portno, char *mess) {
 }
 
 int main(int argc, char **argv) {
-	int ret;
-	int i, j;
+	/*
+	Fonction principale du client.
+	*/
+	// Variales locales
+	int ret; // Code de retour
+	int i, j; // Indices de boucle
 
-    int quit = 0;
-    SDL_Event event;
-	int mx, my;
-	char sendBuffer[1024];
-	char lname[256];
-	int id;
+    int quit = 0; // Booléen de fin du programme
+    SDL_Event event; // Evénement SDL pour la boucle principale
+	int mx, my; // Coordonnées de la souris
+	char sendBuffer[1024]; // Buffer d'envoi de messages au serveur
+	char lname[256]; // Nom courant
+	int id; // Id courant
 
 	int playerAlive[4] = {1, 1, 1, 1}; // 1 = Vivant, 0 = Éliminé
 
@@ -164,21 +181,23 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
+	// Récupération des arguments d'éxécution
 	strcpy(gServerIpAddress, argv[1]);
 	gServerPort = atoi(argv[2]);
 	strcpy(gClientIpAddress, argv[3]);
 	gClientPort = atoi(argv[4]);
 	strcpy(gName, argv[5]);
 
-    SDL_Init(SDL_INIT_VIDEO);
-	TTF_Init();
+	// --- Initialisation de SDL2 --- //
+    SDL_Init(SDL_INIT_VIDEO); 
+	TTF_Init(); 
  
-    SDL_Window *window = SDL_CreateWindow("SDL2 SH13", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1024, 768, 0);
- 
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Window *window = SDL_CreateWindow("SDL2 SH13", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1024, 768, 0); // Création d'une fenêtre SDL
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0); // Création d'un renderer SDL pour la fenêtre
+    SDL_Surface *deck[13], *objet[8], *gobutton, *connectbutton; // Initialisation des surfaces SDL pour les images
 
-    SDL_Surface *deck[13], *objet[8], *gobutton, *connectbutton;
-
+	// --- Chargement des images --- //
+	// Cartes
 	deck[0] = IMG_Load("./png/SH13_0.png");
 	deck[1] = IMG_Load("./png/SH13_1.png");
 	deck[2] = IMG_Load("./png/SH13_2.png");
@@ -192,7 +211,7 @@ int main(int argc, char **argv) {
 	deck[10] = IMG_Load("./png/SH13_10.png");
 	deck[11] = IMG_Load("./png/SH13_11.png");
 	deck[12] = IMG_Load("./png/SH13_12.png");
-
+	// Objets
 	objet[0] = IMG_Load("./png/SH13_pipe_120x120.png");
 	objet[1] = IMG_Load("./png/SH13_ampoule_120x120.png");
 	objet[2] = IMG_Load("./png/SH13_poing_120x120.png");
@@ -201,37 +220,41 @@ int main(int argc, char **argv) {
 	objet[5] = IMG_Load("./png/SH13_collier_120x120.png");
 	objet[6] = IMG_Load("./png/SH13_oeil_120x120.png");
 	objet[7] = IMG_Load("./png/SH13_crane_120x120.png");
-
+	// Boutons
 	gobutton = IMG_Load("./png/gobutton.png");
 	connectbutton = IMG_Load("./png/connectbutton.png");
+
+	// --- Initialisation des variables globales --- //
+	// Noms des joueurs
 	strcpy(gNames[0],"-");
 	strcpy(gNames[1],"-");
 	strcpy(gNames[2],"-");
 	strcpy(gNames[3],"-");
-
+	// Etat du jeu
 	joueurSel=-1;
 	objetSel=-1;
 	guiltSel=-1;
-
+	// Cartes en main
 	b[0]=-1;
 	b[1]=-1;
 	b[2]=-1;
-
+	// Suspects éliminés
 	for (i = 0; i < 13; i++) { guiltGuess[i] = 0; }
-
+	// Table des cartes connues
 	for (i = 0; i < 4; i++) { for (j = 0; j < 8; j++) { tableCartes[i][j] = -1; } }
-
+	// Etat des boutons
 	goEnabled = 0;
 	connectEnabled = 1;
 
-    SDL_Texture *texture_deck[13], *texture_gobutton, *texture_connectbutton, *texture_objet[8];
+    SDL_Texture *texture_deck[13], *texture_gobutton, *texture_connectbutton, *texture_objet[8]; // Initialisation des textures SDL pour les images
 
+	// Conversion des surfaces en textures
 	for (i = 0; i < 13; i++) { texture_deck[i] = SDL_CreateTextureFromSurface(renderer, deck[i]); }
 	for (i = 0; i < 8; i++) { texture_objet[i] = SDL_CreateTextureFromSurface(renderer, objet[i]); }
-
     texture_gobutton = SDL_CreateTextureFromSurface(renderer, gobutton);
     texture_connectbutton = SDL_CreateTextureFromSurface(renderer, connectbutton);
 
+	// Chargement de la police TTF (True Type Font)
     TTF_Font *Sans = TTF_OpenFont("./font/sans.ttf", 15); 
     printf("Sans=%p\n",Sans);
 
@@ -240,71 +263,72 @@ int main(int argc, char **argv) {
 	synchro = 0;
 	ret = pthread_create (&thread_serveur_tcp_id, NULL, fn_serveur_tcp, NULL);
 
+	// BOUCLE PRINCIPALE
     while (!quit) {
-		if (SDL_PollEvent(&event)) {
+		if (SDL_PollEvent(&event)) { // Si un événement est détecté (clavier, souris, etc.)
 			//printf("un event\n");
-        	switch (event.type) {
-				case SDL_QUIT:
+        	switch (event.type) { // On traite l'événement selon son type
+				case SDL_QUIT: // Fermeture de la fenêtre
 					quit = 1;
 					break;
 			
-				case SDL_MOUSEBUTTONDOWN:
-					SDL_GetMouseState( &mx, &my );
+				case SDL_MOUSEBUTTONDOWN: // Clic souris
+					SDL_GetMouseState( &mx, &my ); // Récupération des coordonnées de la souris
 					//printf("mx=%d my=%d\n",mx,my);
-					if ((mx < 200) && (my < 50) && (connectEnabled == 1)) {
+					if ((mx < 200) && (my < 50) && (connectEnabled == 1)) { // Clic sur le bouton "Connect" identifié par sa position
 						sprintf(sendBuffer,"C %s %d %s", gClientIpAddress, gClientPort, gName);
 
 						sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer);
 						connectEnabled = 0;
 						
-					} else if ((mx >= 0) && (mx < 200) && (my >= 90) && (my < 330)) {
+					} else if ((mx >= 0) && (mx < 200) && (my >= 90) && (my < 330)) { // Clic sur la zone des joueurs identifiée par sa position
 						joueurSel = (my-90)/60;
 						guiltSel = -1;
 
-					} else if ((mx >= 200) && (mx < 680) && (my >= 0) && (my < 90)) {
+					} else if ((mx >= 200) && (mx < 680) && (my >= 0) && (my < 90)) { // Clic sur la zone des objets identifiée par sa position
 						objetSel = (mx-200)/60;
 						guiltSel = -1;
 
-					} else if ((mx >= 100) && (mx < 250) && (my >= 350) && (my < 740)) {
+					} else if ((mx >= 100) && (mx < 250) && (my >= 350) && (my < 740)) { // Clic sur la zone des suspects identifiée par sa position
 						joueurSel = -1;
 						objetSel = -1;
 						guiltSel = (my-350)/30;
 
-					} else if ((mx >= 250) && (mx < 300) && (my >= 350) && (my < 740)) {
+					} else if ((mx >= 250) && (mx < 300) && (my >= 350) && (my < 740)) { // Clic sur la zone des suspects identifiée par sa position
 						int ind = (my-350)/30;
 						guiltGuess[ind] = 1-guiltGuess[ind];
 
-					} else if ((mx >= 500) && (mx < 700) && (my >= 350) && (my < 450) && (goEnabled == 1)) {
+					} else if ((mx >= 500) && (mx < 700) && (my >= 350) && (my < 450) && (goEnabled == 1)) { // Clic sur le bouton "Go" identifié par sa position
 						printf("go! joueur=%d objet=%d guilt=%d\n", joueurSel, objetSel, guiltSel);
-						if (guiltSel != -1) {;
-							sprintf(sendBuffer, "G %d %d", gId, guiltSel);
-							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Envoi de l'accusation
+						if (guiltSel != -1) { // Accusation
+							sprintf(sendBuffer, "G %d %d", gId, guiltSel); // Construction du message
+							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Envoi
 							goEnabled = 0; // On désactive le bouton après avoir joué
 			
-						} else if ((objetSel != -1) && (joueurSel==-1)) {
-							sprintf(sendBuffer, "O %d %d", gId, objetSel);
-							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Question à tous
+						} else if ((objetSel != -1) && (joueurSel==-1)) { // Question à tous
+							sprintf(sendBuffer, "O %d %d", gId, objetSel); // Construction du message
+							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Envoi
 							goEnabled = 0; // On désactive le bouton après avoir joué
 
-						} else if ((objetSel != -1) && (joueurSel!=-1)) {
-							sprintf(sendBuffer, "S %d %d %d", gId, joueurSel, objetSel);
-							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Question à un joueur
+						} else if ((objetSel != -1) && (joueurSel!=-1)) { // Question à un joueur
+							sprintf(sendBuffer, "S %d %d %d", gId, joueurSel, objetSel); // Construction du message
+							sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer); // Envoi
 							goEnabled = 0; // On désactive le bouton après avoir joué
  
 						}
-					} else {
+					} else { // Clic en dehors des zones interactives
 						joueurSel = -1;
 						objetSel = -1;
 						guiltSel = -1;
 					}
 					break;
 
-				case  SDL_MOUSEMOTION:
-					SDL_GetMouseState( &mx, &my );
+				case  SDL_MOUSEMOTION: // Mouvement souris
+					SDL_GetMouseState( &mx, &my ); // Récupération des coordonnées de la souris
 					break;
 			}
 		}
-
+		// Traitement des messages reçus du serveur tcp
 		if (synchro == 1) {
 			printf("consomme |%s|\n", gbuffer);
 			switch (gbuffer[0]) {
@@ -410,6 +434,7 @@ int main(int argc, char **argv) {
 			}
 		}
 
+		// --- Rendu graphique --- //
 		SDL_Rect dstrect_grille = { 512-250, 10, 500, 350 };
 		SDL_Rect dstrect_image = { 0, 0, 500, 330 };
 		SDL_Rect dstrect_image1 = { 0, 340, 250, 330/2 };
@@ -826,8 +851,9 @@ int main(int argc, char **argv) {
 		}
 
 		SDL_RenderPresent(renderer);
-	}
- 
+	} // FIN BOUCLE PRINCIPALE
+	
+	// Nettoyage des ressources avant de quitter
     SDL_DestroyTexture(texture_deck[0]);
     SDL_DestroyTexture(texture_deck[1]);
     SDL_FreeSurface(deck[0]);
